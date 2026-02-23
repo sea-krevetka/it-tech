@@ -1,0 +1,6 @@
+replicaCount: 3
+image:
+  repository: primer/obraz
+  tag: "prod"
+service:
+  port: 8000

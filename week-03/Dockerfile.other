@@ -1,0 +1,30 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV SERVICE_TYPE=other
+ENV APP_NAME="Mushroom Library Service"
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Добавьте эту строку для обновления pip и certifi
+RUN pip3 install --upgrade pip certifi
+
+RUN useradd -m -u 1001 appuser
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+COPY other_service.py .
+
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+USER appuser
+EXPOSE 8000
+
+CMD ["uvicorn", "other_service:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

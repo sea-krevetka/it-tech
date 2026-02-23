@@ -1,0 +1,22 @@
+version: '3.9'
+services:
+  app:
+    # Замените на имя образа
+    image: primer/obraz
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - app-net
+  gateway:
+    # Замените на имя образа
+    image: primer/obraz
+    depends_on:
+      - app
+    networks:
+      - app-net
+networks:
+  app-net:
+    driver: bridge

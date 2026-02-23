@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+// Опишите ваш пакет и сервис здесь
+// package example;
+
+// service MyService {
+//   rpc MyMethod (MyRequest) returns (MyResponse);
+// }
+
+// message MyRequest {
+//   string id = 1;
+// }
+
+// message MyResponse {
+//   string result = 1;
+// }

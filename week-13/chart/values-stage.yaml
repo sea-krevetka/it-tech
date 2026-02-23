@@ -1,0 +1,6 @@
+replicaCount: 2
+image:
+  repository: primer/obraz
+  tag: "stage"
+service:
+  port: 8000

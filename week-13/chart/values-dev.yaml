@@ -1,0 +1,6 @@
+replicaCount: 1
+image:
+  repository: primer/obraz
+  tag: "dev"
+service:
+  port: 8000
