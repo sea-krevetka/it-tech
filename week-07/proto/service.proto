@@ -1,16 +1,61 @@
 syntax = "proto3";
 
-// Опишите ваш пакет и сервис здесь
-// package example;
+package shipments.v1;
 
-// service MyService {
-//   rpc MyMethod (MyRequest) returns (MyResponse);
-// }
+// сервис для управления отправками
+service ShipmentsService {
+    // создание
+    rpc CreateShipment (CreateShipmentRequest) returns (Shipment);
+    // получение по id
+    rpc GetShipment (GetShipmentRequest) returns (Shipment);
+    //получение списка
+    rpc ListShipments (ListShipmentsRequest) returns (ListShipmentsResponse);
+    // получение статуса
+    rpc UpdateShipmentStatus (UpdateShipmentStatusRequest) returns (Shipment);
+}
 
-// message MyRequest {
-//   string id = 1;
-// }
+// сообщение для отправки (shipment)
+message Shipment {
+    string id = 1;
+    string tracking_number = 2;
+    string status = 3;
+    string origin = 4;
+    string destination = 5;
+    float weight = 6;
+    string created_at = 7;
+    string updated_at = 8;
+}
 
-// message MyResponse {
-//   string result = 1;
-// }
+// запрос на создание отправки
+message CreateShipmentRequest {
+    string tracking_number = 1;
+    string origin = 2;
+    string destination = 3;
+    float weight = 4;
+}
+
+// запрос на получение отправки
+message GetShipmentRequest {
+    string id = 1;
+}
+
+// запрос на получение списка отправок
+message ListShipmentsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    string status = 3;
+}
+
+// ответ со списком отправок
+message ListShipmentsResponse {
+    repeated Shipment shipments = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+// запрос на обновление статуса
+message UpdateShipmentStatusRequest {
+    string id = 1;
+    string status = 2;
+}

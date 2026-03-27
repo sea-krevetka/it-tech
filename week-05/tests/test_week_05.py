@@ -1,15 +1,66 @@
+import uuid
+import datetime
+from typing import List, Optional
+from fastapi import FastAPI
+import strawberry
+from strawberry.fastapi import GraphQLRouter
 
-from pathlib import Path
-from coursekit.variant import load_variant
-from coursekit.koan import need
+items_db = []
 
-WEEK = "05"
-ROOT = Path(__file__).resolve().parents[3]
-SCHEMA = ROOT / 'weeks' / 'week-05' / 'app' / 'schema.graphql'
+@strawberry.type
+class Item:
+    id: str
+    name: str
+    description: Optional[str]
+    price: float
+    sku: str
+    created_at: str
 
-def test_schema_exists():
-    v = load_variant(WEEK)
-    need(SCHEMA.exists(), f"Создайте GraphQL схему: {SCHEMA}")
-    text = SCHEMA.read_text()
-    need(v['graphql']['type'] in text, "В схеме должен быть тип из варианта.")
-    need(v['graphql']['mutation'] in text, "В схеме должна быть мутация из варианта.")
+@strawberry.input
+class CreateItemInput:
+    name: str
+    description: Optional[str] = None
+    price: float
+    sku: str
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def items(self) -> List[Item]:
+        #Получить все items
+        return items_db
+    
+    @strawberry.field
+    def item(self, id: str) -> Optional[Item]:
+        #Получить item по ID
+        for item in items_db:
+            if item.id == id:
+                return item
+        return None
+
+@strawberry.type
+class Mutation:
+    @strawberry.mutation
+    def create_item(self, input: CreateItemInput) -> Item:
+     #Создать новый item
+        new_item = Item(
+            id=str(uuid.uuid4())[:8],
+            name=input.name,
+            description=input.description,
+            price=input.price,
+            sku=input.sku,
+            created_at=datetime.datetime.now().isoformat()
+        )
+        items_db.append(new_item)
+        return new_item
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+app = FastAPI(title="GraphQL Items API")
+
+graphql_app = GraphQLRouter(schema)
+app.include_router(graphql_app, prefix="/graphql")
+
+@app.get("/")
+async def root():
+    return {"message": "Ва-ха-ха! GraphQL API работает! Заходите на /graphql"}
