@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package shipments.v1;
+
+service ShipmentsService {
+    rpc CreateShipment (CreateShipmentRequest) returns (Shipment);
+    rpc GetShipment (GetShipmentRequest) returns (Shipment);
+    rpc ListShipments (ListShipmentsRequest) returns (ListShipmentsResponse);
+    rpc UpdateShipmentStatus (UpdateShipmentStatusRequest) returns (Shipment);
+    
+    rpc TrackShipment (TrackShipmentRequest) returns (stream ShipmentUpdate);
+}
+
+message Shipment {
+    string id = 1;
+    string tracking_number = 2;
+    string status = 3;
+    string origin = 4;
+    string destination = 5;
+    float weight = 6;
+    string created_at = 7;
+    string updated_at = 8;
+}
+
+message CreateShipmentRequest {
+    string tracking_number = 1;
+    string origin = 2;
+    string destination = 3;
+    float weight = 4;
+}
+
+message GetShipmentRequest {
+    string id = 1;
+}
+
+message ListShipmentsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    string status = 3;
+}
+
+message ListShipmentsResponse {
+    repeated Shipment shipments = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message UpdateShipmentStatusRequest {
+    string id = 1;
+    string status = 2;
+}
+
+message TrackShipmentRequest {
+    string shipment_id = 1;
+    int32 update_interval_seconds = 2;
+    int32 max_updates = 3;
+}
+
+message ShipmentUpdate {
+    string shipment_id = 1;
+    string status = 2;
+    string location = 3;
+    string timestamp = 4;
+    string message = 5;
+}
