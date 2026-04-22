@@ -1,2 +1,986 @@
-<!doctype html>
-<!-- В этом месте вам необходимо: реализуйте WebRTC клиент -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waluigi's P2P Chat - bookings-s01</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Neue', 'Comic Neue', 'Segoe UI', 'Comic Sans MS', 'Chalkboard SE', cursive;
+            background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Фоновые элементы в стиле Waluigi */
+        body::before {
+            content: "ВА-ХА-ХА!";
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 60px;
+            color: rgba(98, 0, 128, 0.1);
+            font-weight: bold;
+            pointer-events: none;
+            transform: rotate(-10deg);
+        }
+        
+        body::after {
+            content: "🟣  🟪";
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 40px;
+            color: rgba(128, 0, 128, 0.15);
+            pointer-events: none;
+        }
+        
+        .container {
+            background: linear-gradient(145deg, #2d1b4e 0%, #1a0a2e 100%);
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            width: 90%;
+            max-width: 1300px;
+            height: 85vh;
+            display: flex;
+            overflow: hidden;
+            border: 3px solid #9b59b6;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Уголки в стиле Waluigi */
+        .container::before {
+            content: " ";
+            position: absolute;
+            top: -15px;
+            left: -15px;
+            font-size: 30px;
+            color: #ff69b4;
+            text-shadow: 2px 2px 0 #4a0e4e;
+        }
+        
+        .container::after {
+            content: " ";
+            position: absolute;
+            bottom: -15px;
+            right: -15px;
+            font-size: 30px;
+            color: #ff69b4;
+            text-shadow: 2px 2px 0 #4a0e4e;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #1a0a2e 0%, #0d0518 100%);
+            color: #e8d5f5;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 3px solid #9b59b6;
+        }
+        
+        .sidebar h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: #ff69b4;
+            text-shadow: 2px 2px 0 #4a0e4e;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        
+        .connection-info {
+            background: #0d0518;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 1px solid #9b59b6;
+            box-shadow: inset 0 0 10px rgba(155, 89, 182, 0.2);
+        }
+        
+        .connection-info div {
+            margin: 8px 0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 5px currentColor;
+        }
+        
+        .status.connected { background: #00ff88; box-shadow: 0 0 5px #00ff88; }
+        .status.disconnected { background: #ff4444; box-shadow: 0 0 5px #ff4444; }
+        .status.connecting { background: #ffaa00; box-shadow: 0 0 5px #ffaa00; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .users-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .users-list h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #ff69b4;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .user-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: linear-gradient(90deg, #2d1b4e 0%, #1a0a2e 100%);
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #9b59b6;
+            transition: all 0.3s;
+        }
+        
+        .user-item:hover {
+            transform: translateX(5px);
+            border-color: #ff69b4;
+            box-shadow: 0 0 10px rgba(255, 105, 180, 0.3);
+        }
+        
+        .user-item.current {
+            background: linear-gradient(90deg, #4a0e4e 0%, #2d1b4e 100%);
+            border-color: #ff69b4;
+        }
+        
+        .call-btn {
+            background: linear-gradient(135deg, #ff69b4 0%, #9b59b6 100%);
+            border: none;
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: inherit;
+            transition: all 0.3s;
+            text-shadow: 1px 1px 0 #4a0e4e;
+        }
+        
+        .call-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.5);
+        }
+        
+        .call-btn.active {
+            background: linear-gradient(135deg, #ffaa00 0%, #ff69b4 100%);
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 100%);
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #0d0518 0%, #1a0a2e 100%);
+            padding: 20px;
+            border-bottom: 2px solid #9b59b6;
+        }
+        
+        .chat-header h1 {
+            font-size: 28px;
+            color: #ff69b4;
+            text-shadow: 3px 3px 0 #4a0e4e;
+            letter-spacing: 3px;
+        }
+        
+        .chat-header h1::before {
+            content: "  ";
+        }
+        
+        .chat-header h1::after {
+            content: "  ";
+        }
+        
+        .chat-header p {
+            font-size: 12px;
+            color: #b886d9;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(13, 5, 24, 0.5);
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.own {
+            align-items: flex-end;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: 10px 18px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .message:not(.own) .message-bubble {
+            background: linear-gradient(135deg, #2d1b4e 0%, #1a0a2e 100%);
+            color: #e8d5f5;
+            border: 1px solid #9b59b6;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message:not(.own) .message-bubble::before {
+            content: " ";
+            position: absolute;
+            left: -20px;
+            bottom: -5px;
+            font-size: 14px;
+        }
+        
+        .message.own .message-bubble {
+            background: linear-gradient(135deg, #ff69b4 0%, #9b59b6 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.own .message-bubble::after {
+            content: " ";
+            position: absolute;
+            right: -20px;
+            bottom: -5px;
+            font-size: 14px;
+        }
+        
+        .message-info {
+            font-size: 10px;
+            color: #b886d9;
+            margin: 5px 10px;
+        }
+        
+        .system-message {
+            text-align: center;
+            color: #ff69b4;
+            font-size: 12px;
+            margin: 10px 0;
+            font-style: italic;
+            background: rgba(155, 89, 182, 0.2);
+            padding: 5px;
+            border-radius: 15px;
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: linear-gradient(135deg, #0d0518 0%, #1a0a2e 100%);
+            border-top: 2px solid #9b59b6;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-area input {
+            flex: 1;
+            padding: 14px 20px;
+            background: #0d0518;
+            border: 2px solid #9b59b6;
+            border-radius: 30px;
+            outline: none;
+            font-size: 14px;
+            font-family: inherit;
+            color: #e8d5f5;
+            transition: all 0.3s;
+        }
+        
+        .input-area input:focus {
+            border-color: #ff69b4;
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.3);
+        }
+        
+        .input-area input::placeholder {
+            color: #6b4e7e;
+            font-style: italic;
+        }
+        
+        .input-area button {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #ff69b4 0%, #9b59b6 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-shadow: 1px 1px 0 #4a0e4e;
+        }
+        
+        .input-area button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.5);
+        }
+        
+        .input-area button:disabled {
+            background: linear-gradient(135deg, #6b4e7e 0%, #4a0e4e 100%);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .join-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 5, 24, 0.95);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .join-card {
+            background: linear-gradient(145deg, #2d1b4e 0%, #1a0a2e 100%);
+            padding: 50px;
+            border-radius: 40px;
+            width: 450px;
+            text-align: center;
+            border: 3px solid #ff69b4;
+            box-shadow: 0 0 50px rgba(255, 105, 180, 0.3);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 20px rgba(255, 105, 180, 0.3); }
+            to { box-shadow: 0 0 50px rgba(255, 105, 180, 0.6); }
+        }
+        
+        .join-card h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff69b4;
+            text-shadow: 3px 3px 0 #4a0e4e;
+        }
+        
+        .join-card h2::before {
+            content: "   ";
+        }
+        
+        .join-card h2::after {
+            content: "  ";
+        }
+        
+        .join-card p {
+            color: #b886d9;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        
+        .join-card input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            background: #0d0518;
+            border: 2px solid #9b59b6;
+            border-radius: 25px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #e8d5f5;
+            transition: all 0.3s;
+        }
+        
+        .join-card input:focus {
+            outline: none;
+            border-color: #ff69b4;
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.3);
+        }
+        
+        .join-card input::placeholder {
+            color: #6b4e7e;
+            font-style: italic;
+        }
+        
+        .join-card button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #ff69b4 0%, #9b59b6 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: inherit;
+            margin-top: 20px;
+            transition: all 0.3s;
+            text-shadow: 1px 1px 0 #4a0e4e;
+        }
+        
+        .join-card button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 105, 180, 0.5);
+        }
+        
+        .user-status {
+            font-size: 10px;
+            color: #00ff88;
+            text-shadow: 0 0 3px #00ff88;
+        }
+        
+        /* Стиль скроллбара */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0d0518;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ff69b4 0%, #9b59b6 100%);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff69b4;
+        }
+        
+        /* Анимация для Waluigi приветствия */
+        .waluigi-wave {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            z-index: 2;
+        }
+        
+        .waluigi-wave:hover {
+            transform: scale(1.2) rotate(10deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="waluigi-wave" onclick="alert('ВА-ХА-ХА! Я, ВАЛУИДЖИ, ПРИВЕТСТВУЮ ТЕБЯ!  ')">
+           
+    </div>
+    
+    <div class="join-screen" id="joinScreen">
+        <div class="join-card">
+            <h2>Waluigi chat</h2>
+            <p>project_code: bookings-s01</p>
+            <p>  ВА-ХА-ХА! Присоединяйся к моему P2P чату!  </p>
+            <input type="text" id="username" placeholder="Твоё имя, смертный!">
+            <input type="text" id="room" placeholder="Название комнаты" value="waluigi-room">
+            <button onclick="joinRoom()"> Воин, вперед!</button>
+        </div>
+    </div>
+    
+    <div class="container" style="display: none;" id="chatContainer">
+        <div class="sidebar">
+            <h2>  WALUIGI P2P  </h2>
+            <div class="connection-info">
+                <div>
+                    <span class="status disconnected" id="signalingStatus"></span>
+                    <span id="signalingStatusText">Signaling: Отключен</span>
+                </div>
+                <div>
+                    <span class="status disconnected" id="p2pStatus"></span>
+                    <span id="p2pStatusText">P2P: Отключен</span>
+                </div>
+            </div>
+            <div class="users-list">
+                <h3>👥 Сообщники!</h3>
+                <div id="usersList"></div>
+            </div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header">
+                <h1>ЧАТ ВАЛУИДЖИ</h1>
+                <p>  Сообщения идут напрямую! Как я и хочу!  </p>
+            </div>
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Напиши сообщение... ВА-ХА-ХА!" disabled>
+                <button onclick="sendMessage()" id="sendBtn" disabled>Отправить</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Конфигурация WebRTC
+        const configuration = {
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" }
+            ]
+        };
+        
+        // Глобальные переменные
+        let ws = null;
+        let peerConnection = null;
+        let dataChannel = null;
+        let currentRoom = "";
+        let currentUser = "";
+        let activePeer = null;
+        
+        // DOM элементы
+        const joinScreen = document.getElementById("joinScreen");
+        const chatContainer = document.getElementById("chatContainer");
+        const messagesDiv = document.getElementById("messages");
+        const usersListDiv = document.getElementById("usersList");
+        const messageInput = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+        
+        // Waluigi приветствие
+        function waluigiSay(message) {
+            addSystemMessage(`  ВАЛУИДЖИ: ${message}  `);
+        }
+        
+        // Присоединение к комнате
+        function joinRoom() {
+            currentUser = document.getElementById("username").value.trim();
+            currentRoom = document.getElementById("room").value.trim();
+            
+            if (!currentUser) {
+                alert("ВА-А-А! Введи имя, смертный!");
+                return;
+            }
+            if (!currentRoom) currentRoom = "waluigi-room";
+            
+            // Подключение к WebSocket
+            ws = new WebSocket("ws://localhost:8765");
+            
+            ws.onopen = () => {
+                console.log("✅ WebSocket connected");
+                ws.send(JSON.stringify({
+                    type: "join",
+                    username: currentUser,
+                    room: currentRoom
+                }));
+                waluigiSay(`Пользователь ${currentUser} присоединился к комнате ${currentRoom}! ВА-ХА-ХА!`);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleSignalingMessage(data);
+            };
+            
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                addSystemMessage("❌ ВА-А-А! Ошибка подключения! Запусти сервер, болван!");
+            };
+            
+            ws.onclose = () => {
+                console.log("WebSocket disconnected");
+                updateStatus("signalingStatus", "signalingStatusText", false, "Signaling: Отключен");
+                waluigiSay("Соединение с сервером потеряно! ВА-А-А!");
+            };
+            
+            // Скрыть экран входа и показать чат
+            joinScreen.style.display = "none";
+            chatContainer.style.display = "flex";
+        }
+        
+        // Обработка сообщений от Signaling сервера
+        function handleSignalingMessage(data) {
+            console.log("Received:", data);
+            
+            switch(data.type) {
+                case "joined":
+                    updateStatus("signalingStatus", "signalingStatusText", true, "Signaling: Подключен");
+                    addSystemMessage(`✅ Добро пожаловать, ${data.username}! ВА-ХА-ХА!`);
+                    if (data.users && data.users.length > 0) {
+                        updateUsersList(data.users);
+                    }
+                    break;
+                    
+                case "user_joined":
+                    addSystemMessage(`👤 ${data.username} присоединился! ВА-ХА-ХА! Ещё одна жертва!`);
+                    if (data.users) {
+                        updateUsersList(data.users);
+                    }
+                    if (data.users && data.users.length >= 2 && !activePeer) {
+                        waluigiSay("Кого-то позови! Нажми на кнопку Позвать! ВА-ХА-ХА!");
+                    }
+                    break;
+                    
+                case "user_left":
+                    addSystemMessage(`👋 ${data.username} сбежал! Ха-ха-ха! Слабак!`);
+                    if (data.users) {
+                        updateUsersList(data.users);
+                    }
+                    if (activePeer === data.username) {
+                        endCall();
+                    }
+                    break;
+                    
+                case "webrtc":
+                    if (data.signal && data.from) {
+                        handleWebRTCSignal(data.from, data.signal);
+                    }
+                    break;
+            }
+        }
+        
+        // Обновление списка пользователей
+        function updateUsersList(users) {
+            usersListDiv.innerHTML = '<h3>👥 Члены банды!</h3>';
+            
+            // Добавляем текущего пользователя
+            const currentUserDiv = document.createElement("div");
+            currentUserDiv.className = "user-item current";
+            currentUserDiv.innerHTML = `
+                <span>${escapeHtml(currentUser)}</span>
+                <span class="user-status">🟢Воин онлайн!</span>
+            `;
+            usersListDiv.appendChild(currentUserDiv);
+            
+            if (!users || users.length === 0) {
+                usersListDiv.innerHTML += '<div style="color: #b886d9; padding: 10px; text-align: center;">🤷 НИКОГО НЕТ... ОДИНОКО...</div>';
+                return;
+            }
+            
+            // Добавляем остальных пользователей
+            users.forEach(user => {
+                if (user === currentUser) return;
+                
+                const userDiv = document.createElement("div");
+                userDiv.className = "user-item";
+                userDiv.innerHTML = `
+                    <span>${escapeHtml(user)}</span>
+                    <button class="call-btn ${activePeer === user ? 'active' : ''}" onclick="startCall('${escapeHtml(user)}')">
+                        ${activePeer === user ? '📞 На созвоне' : '🔗 позвать'}
+                    </button>
+                `;
+                usersListDiv.appendChild(userDiv);
+            });
+        }
+        
+        // Начало WebRTC звонка
+        async function startCall(peerName) {
+            if (peerName === currentUser) {
+                waluigiSay("Нельзя позвать самого себя! Ты глупый? ВА-ХА-ХА!");
+                return;
+            }
+            
+            if (activePeer) {
+                waluigiSay(`Ты уже говоришь с ${activePeer}! Закончи сначала!`);
+                return;
+            }
+            
+            activePeer = peerName;
+            updateStatus("p2pStatus", "p2pStatusText", false, "P2P: Установка соединения...", "connecting");
+            waluigiSay(`Зову ${peerName}! Сейчас соединимся! ВА-ХА-ХА!`);
+            
+            // Создаем PeerConnection
+            peerConnection = new RTCPeerConnection(configuration);
+            
+            // Обработка ICE кандидатов
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: "webrtc",
+                        target: activePeer,
+                        signal: {
+                            type: "candidate",
+                            candidate: event.candidate
+                        }
+                    }));
+                }
+            };
+            
+            // Обработка состояния соединения
+            peerConnection.onconnectionstatechange = () => {
+                console.log("Connection state:", peerConnection.connectionState);
+                switch(peerConnection.connectionState) {
+                    case "connected":
+                        updateStatus("p2pStatus", "p2pStatusText", true, "P2P: ПОДКЛЮЧЕН!");
+                        waluigiSay(`УРА! P2P соединение с ${activePeer} установлено! МОЖНО ОБЩАТЬСЯ! ВА-ХА-ХА!`);
+                        messageInput.disabled = false;
+                        sendBtn.disabled = false;
+                        messageInput.focus();
+                        updateUsersList(getCurrentUsersFromDOM());
+                        break;
+                    case "disconnected":
+                    case "failed":
+                        waluigiSay(`Не удалось соединиться с ${activePeer}! Попробуй ещё раз! ВА-А-А!`);
+                        endCall();
+                        break;
+                    case "closed":
+                        endCall();
+                        break;
+                }
+            };
+            
+            // Создаем Data Channel
+            dataChannel = peerConnection.createDataChannel("chat");
+            setupDataChannel(dataChannel);
+            
+            // Создаем offer
+            try {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                ws.send(JSON.stringify({
+                    type: "webrtc",
+                    target: activePeer,
+                    signal: {
+                        type: "offer",
+                        sdp: offer.sdp
+                    }
+                }));
+            } catch (error) {
+                console.error("Error creating offer:", error);
+                waluigiSay("Ошибка при создании соединения! ВА-А-А!");
+                endCall();
+            }
+            
+            updateUsersList(getCurrentUsersFromDOM());
+        }
+        
+        // Обработка входящих WebRTC сигналов
+        async function handleWebRTCSignal(from, signal) {
+            // Если нет активного соединения, создаем
+            if (!peerConnection && (signal.type === "offer")) {
+                activePeer = from;
+                updateStatus("p2pStatus", "p2pStatusText", false, "P2P: Входящий вызов...", "connecting");
+                waluigiSay(`${from} зовёт тебя! Принимай вызов! ВА-ХА-ХА!`);
+                
+                peerConnection = new RTCPeerConnection(configuration);
+                
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        ws.send(JSON.stringify({
+                            type: "webrtc",
+                            target: activePeer,
+                            signal: {
+                                type: "candidate",
+                                candidate: event.candidate
+                            }
+                        }));
+                    }
+                };
+                
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === "connected") {
+                        updateStatus("p2pStatus", "p2pStatusText", true, "P2P: ПОДКЛЮЧЕН!");
+                        waluigiSay(`УРА! Соединение с ${activePeer} установлено! ВА-ХА-ХА!`);
+                        messageInput.disabled = false;
+                        sendBtn.disabled = false;
+                    } else if (peerConnection.connectionState === "disconnected" || 
+                               peerConnection.connectionState === "failed") {
+                        updateStatus("p2pStatus", "p2pStatusText", false, "P2P: Отключен");
+                        waluigiSay(`Соединение с ${activePeer} потеряно! ВА-А-А!`);
+                        endCall();
+                    }
+                };
+                
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannel(dataChannel);
+                };
+                
+                updateUsersList(getCurrentUsersFromDOM());
+            }
+            
+            if (!peerConnection) return;
+            
+            try {
+                if (signal.type === "offer") {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: signal.sdp }));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    
+                    ws.send(JSON.stringify({
+                        type: "webrtc",
+                        target: activePeer,
+                        signal: {
+                            type: "answer",
+                            sdp: answer.sdp
+                        }
+                    }));
+                } else if (signal.type === "answer") {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: signal.sdp }));
+                } else if (signal.type === "candidate") {
+                    if (peerConnection.remoteDescription) {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                    }
+                }
+            } catch (error) {
+                console.error("Error handling signal:", error);
+            }
+        }
+        
+        // Настройка Data Channel
+        function setupDataChannel(channel) {
+            channel.onopen = () => {
+                console.log("Data channel opened");
+                waluigiSay("Data channel открыт! Шлите сообщения! ВА-ХА-ХА!");
+            };
+            
+            channel.onclose = () => {
+                console.log("Data channel closed");
+                waluigiSay("Data channel закрыт! ВА-А-А!");
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+            };
+            
+            channel.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addMessage(data.from, data.message, false);
+            };
+            
+            channel.onerror = (error) => {
+                console.error("Data channel error:", error);
+            };
+        }
+        
+        // Отправка сообщения
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            if (!dataChannel || dataChannel.readyState !== "open") {
+                waluigiSay("Нет P2P соединения! Сначала кого-нибудь позови! ВА-А-А!");
+                return;
+            }
+            
+            const messageData = {
+                from: currentUser,
+                message: message,
+                timestamp: new Date().toISOString()
+            };
+            
+            dataChannel.send(JSON.stringify(messageData));
+            addMessage(currentUser, message, true);
+            messageInput.value = "";
+        }
+        
+        // Добавление сообщения в чат
+        function addMessage(sender, message, isOwn) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${isOwn ? "own" : ""}`;
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${escapeHtml(message)}</div>
+                <div class="message-info">${escapeHtml(sender)} • ${new Date().toLocaleTimeString()}</div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Системное сообщение
+        function addSystemMessage(message) {
+            const systemDiv = document.createElement("div");
+            systemDiv.className = "system-message";
+            systemDiv.innerHTML = message;
+            messagesDiv.appendChild(systemDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Обновление статуса
+        function updateStatus(statusClass, statusTextId, isConnected, text, statusType = null) {
+            const statusEl = document.getElementById(statusClass);
+            const statusTextEl = document.getElementById(statusTextId);
+            if (statusEl) {
+                if (statusType === "connecting") {
+                    statusEl.className = "status connecting";
+                } else {
+                    statusEl.className = `status ${isConnected ? "connected" : "disconnected"}`;
+                }
+            }
+            if (statusTextEl) {
+                statusTextEl.textContent = text;
+            }
+        }
+        
+        // Завершение звонка
+        function endCall() {
+            if (dataChannel) {
+                try { dataChannel.close(); } catch(e) {}
+                dataChannel = null;
+            }
+            if (peerConnection) {
+                try { peerConnection.close(); } catch(e) {}
+                peerConnection = null;
+            }
+            activePeer = null;
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            updateStatus("p2pStatus", "p2pStatusText", false, "P2P: Отключен");
+            updateUsersList(getCurrentUsersFromDOM());
+            waluigiSay("Разговор закончен! ВА-ХА-ХА!");
+        }
+        
+        // Получение текущего списка пользователей из DOM
+        function getCurrentUsersFromDOM() {
+            const users = [];
+            const items = usersListDiv.querySelectorAll(".user-item span");
+            items.forEach(span => {
+                let name = span.textContent.replace("(ЭТО Я!)", "").trim();
+                if (name && !users.includes(name)) {
+                    users.push(name);
+                }
+            });
+            return users;
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Enter для отправки
+        document.addEventListener("keypress", (e) => {
+            if (e.key === "Enter" && !messageInput.disabled && messageInput.value.trim()) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
