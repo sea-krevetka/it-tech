@@ -1,22 +1,225 @@
-version: '3.9'
+version: '3.8'
+networks:
+  shipments-network:
+    driver: bridge
+    name: shipments-network
+volumes:
+  postgres_data:
+    name: shipments-postgres-data
+  redis_data:
+    name: shipments-redis-data
 services:
-  app:
-    # Замените на имя образа
-    image: primer/obraz
+  shipments-svc-s01:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shipments-app
+    restart: unless-stopped
+    
+    ports:
+      - "${APP_PORT:-8210}:8210"
+    
+    environment:
+      - APP_NAME=shipments-svc-s01
+      - APP_PORT=8210
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=shipments
+      - DB_USER=shipments_user
+      - DB_PASSWORD=${DB_PASSWORD:-secret_password}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+      - PYTHONUNBUFFERED=1
+    
+    env_file:
+      - .env.production 2>/dev/null || echo ""
+      - .env.development 2>/dev/null || echo ""
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8210/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+    # Метки для мониторинга
+    labels:
+      - "com.project=shipments-s01"
+      - "com.service=shipments-svc-s01"
+    
+    # Сеть
+    networks:
+      - shipments-network
+    
+    # Ограничения ресурсов
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ------------------------------------------
+  # PostgreSQL база данных
+  # ------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: shipments-postgres
+    restart: unless-stopped
+    
+    environment:
+      - POSTGRES_DB=shipments
+      - POSTGRES_USER=shipments_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secret_password}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
+    # Проброс порта (опционально, для отладки)
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    
+    # Том для постоянного хранения данных
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    
+    # Проверка здоровья PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipments_user -d shipments"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    
+    networks:
+      - shipments-network
+    
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: shipments-redis
+    restart: unless-stopped
+    
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    
+    volumes:
+      - redis_data:/data
+    
+    # Проверка здоровья Redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
-      retries: 3
+      retries: 5
+      start_period: 5s
+    
     networks:
-      - app-net
+      - shipments-network
+    
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
   gateway:
-    # Замените на имя образа
-    image: primer/obraz
+    image: nginx:alpine
+    container_name: shipments-gateway
+    restart: unless-stopped
+    
+    # Проброс портов на хост
+    ports:
+      - "80:80"
+      - "8080:80"
+    
+    # Монтируем конфиг Nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+    
+    # Зависимость от приложения
     depends_on:
-      - app
+      shipments-svc-s01:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    
+    # Проверка здоровья Gateway
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    
     networks:
-      - app-net
-networks:
-  app-net:
-    driver: bridge
+      - shipments-network
+    
+    labels:
+      - "com.project=shipments-s01"
+      - "com.service=gateway"
+    
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: shipments-pgadmin
+    restart: unless-stopped
+    profiles:
+      - dev  # Запускается только с профилем dev
+    
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@shipments.local
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+    
+    ports:
+      - "5050:80"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    networks:
+      - shipments-network
+    
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: shipments-redis-commander
+    restart: unless-stopped
+    profiles:
+      - dev
+    
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    
+    ports:
+      - "8081:8081"
+    
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+    networks:
+      - shipments-network
