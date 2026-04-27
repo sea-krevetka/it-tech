@@ -1,3 +1,72 @@
+# Виртуальные окружения
 .venv
-__pycache__
-*.pyc
+venv
+env
+ENV
+.venv/
+venv/
+myenv
+
+# Python кэш файлы
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Дистрибутивы и сборка
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Логи и временные файлы
+*.log
+*.pid
+*.tmp
+*.bak
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Документация
+*.md
+!README.md
+docs/
+
+# Тесты и покрытие
+tests/
+test_*.py
+*.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Docker файлы
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Локальные конфиги
+.env
+.env.local
+config.local.py
+
+# Файлы проекта (не нужны в контейнере)
+week-10.json
+requirements-dev.txt
