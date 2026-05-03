@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  products-service:
+    build: .
+    ports:
+      - "8283:8283"
+    environment:
+      - DEBUG=False
+      - PORT=8283
+    env_file:
+      - .env.production  # Не коммитить в Git!
+    restart: unless-stopped
