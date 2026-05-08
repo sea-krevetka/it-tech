@@ -1,1 +1,34 @@
-# В этом месте вам необходимо: Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: items-app-service
+  namespace: default
+  labels:
+    app: items-app
+    project: distrib_systems
+    week: "12"
+  annotations:
+    description: "Service for items-app deployment"
+spec:
+  type: ClusterIP
+  
+  selector:
+    app: items-app
+    component: api
+  
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8181
+  
+  # - name: metrics
+  #   protocol: TCP
+  #   port: 9090
+  #   targetPort: 9090
+  
+  sessionAffinity: None
+  # sessionAffinity: ClientIP
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 10800
