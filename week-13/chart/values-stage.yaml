@@ -1,6 +1,15 @@
+# Staging environment values
 replicaCount: 2
+
 image:
-  repository: primer/obraz
-  tag: "stage"
-service:
-  port: 8000
+  repository: items-app
+  tag: stage
+  pullPolicy: Always
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"

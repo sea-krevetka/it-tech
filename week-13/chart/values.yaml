@@ -1,6 +1,56 @@
+# Default values for items-app
+# project_code: items-s01
+
+# Number of replicas
 replicaCount: 1
+
+# Image configuration
 image:
-  repository: primer/obraz
-  tag: "latest"
+  repository: items-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Container port
+containerPort: 8181
+
+# Service configuration
 service:
-  port: 8000
+  type: ClusterIP
+  port: 80
+  targetPort: 8181
+
+# Resource limits and requests
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# Probes configuration
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+
+# Environment variables
+env:
+  - name: APP_NAME
+    value: "Items Service"
+  - name: PORT
+    value: "8181"
+
+# Labels
+labels:
+  app: items-app
+  project_code: items-s01

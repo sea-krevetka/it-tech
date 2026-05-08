@@ -1,6 +1,15 @@
+# Production environment values
 replicaCount: 3
+
 image:
-  repository: primer/obraz
-  tag: "prod"
-service:
-  port: 8000
+  repository: items-app
+  tag: prod
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "200m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

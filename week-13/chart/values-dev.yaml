@@ -1,6 +1,15 @@
+# Development environment values
 replicaCount: 1
+
 image:
-  repository: primer/obraz
-  tag: "dev"
-service:
-  port: 8000
+  repository: items-app
+  tag: dev
+  pullPolicy: Always
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
